@@ -74,45 +74,35 @@ def run_script():
         daily.click()
 
         # Loop through the tasks and check their status from the Excel data
+       
         for task_id, approval_status in tasks.items():
-            # Search for a task by ID
             id_task = wait.until(EC.presence_of_element_located((By.ID, "ms_task_id")))
-            id_task.clear()  # Clear the input field before entering new task ID
+            id_task.clear()
             id_task.send_keys(task_id)
-            btn_search = wait.until(EC.element_to_be_clickable((By.ID, "btn_search")))
-            btn_search.click()
-
-            # Wait for the search results to load
+            wait.until(EC.element_to_be_clickable((By.ID, "btn_search"))).click()
             time.sleep(1)
-
-            # Locate all rows in the table
+            
             rows = driver.find_elements(By.CSS_SELECTOR, "tr.light_row.w3-border.w3-hoverable.w3-hover-color-primary")
-
-            # Loop through the rows to find the one that contains the specific value (task_id)
+            
             for row in rows:
-                # Get all columns in the row
                 columns = row.find_elements(By.TAG_NAME, "td")
-
-                # Check if the row contains the specific task ID
-                if columns[2].text == task_id:  # Task ID is in the second column (index 1)
-                    # Locate the select dropdown for Metfone status (Assumed to be in the 16th column)
+                if columns[2].text == task_id:
+                    current_status = columns[16].find_element(By.CLASS_NAME, "my-select-box").get_attribute("value")
+                    
+                    if current_status == approval_status:
+                        print(f"Task ID {task_id} is already '{approval_status}', skipping...")
+                        break
+                    
                     metfone_dropdown = columns[16].find_element(By.CLASS_NAME, "my-select-box")
-
-                    # Click on the dropdown to open it
                     metfone_dropdown.click()
-
-                    # Select the appropriate approval option based on the Excel file
-                    if approval_status == 'approve':
-                        approve_option = columns[16].find_element(By.XPATH, ".//option[@value='approve']")
-                        approve_option.click()
-                    else:
-                        not_approve_option = columns[16].find_element(By.XPATH, ".//option[@value='not_approve']")
-                        not_approve_option.click()
-
-                    # Click the confirm button to submit
-                    btn_ok = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "swal-button--confirm")))
-                    btn_ok.click()
-                    break  # Exit the loop once the row is found and action is completed
+                    
+                    option_value = "approve" if approval_status.lower() == "approve" else "not_approve"
+                    columns[16].find_element(By.XPATH, f".//option[@value='{option_value}']").click()
+                    
+                    wait.until(EC.presence_of_element_located((By.CLASS_NAME, "swal-button--confirm"))).click()
+                    
+                    print(f"Task ID {task_id} updated to '{approval_status}'")
+                    break
 
         # Show success message
         messagebox.showinfo("Success", "Automation completed successfully!")
@@ -121,8 +111,6 @@ def run_script():
         messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
     finally:
-        # Ensure the browser closes properly
-        time.sleep(10)
         driver.quit()
 
 # Set up the main application window
